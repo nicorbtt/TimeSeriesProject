@@ -60,7 +60,9 @@ show_ts(winestocks)
 # The seasonal naive should be the most appropriate simple forecating method for 
 # our time series due to the strong seasonal component. Let's verify...
 
-train <- window(winestocks$x, start=c(1982,3))
+# handle outliers
+#winestocks$x[55] = (winestocks$x[56] + winestocks$x[54])/2
+train <- winestocks$x
 test <- winestocks$xx
 H <- winestocks$h
 average_method <- meanf(train, h=H)
@@ -69,6 +71,7 @@ seasonal_naive_method <- snaive(train, h=H)
 drift_method <- rwf(train, h=H, drift=TRUE) 
 
 autoplot(train) +
+  ggtitle('Simple forecast methods') +
   autolayer(average_method, series="Mean", PI=FALSE) +
   autolayer(naive_method, series="Naïve", PI=FALSE) +
   autolayer(seasonal_naive_method, series="Seas Naïve", PI=FALSE) +
@@ -85,27 +88,66 @@ rownames(test_metrics) <- c('Mean','Naïve','Seas Naïve', 'Drift')
 test_metrics
 
 autoplot(train) +
-  autolayer(seasonal_naive_method, series="Seas Naïve", PI=TRUE) +
+  ggtitle('Forecasts from Seasonal naive method') + 
+  autolayer(seasonal_naive_method, series="S. Naïve", PI=TRUE) +
   autolayer(test, series="Actual") +
-  xlab("Year") + ylab('') + 
-  guides(colour=guide_legend(title=""))
+  xlab("Year") + ylab('')
 
 # seasonal naive turns out to be the best choise. 
-accuracy(average_method, test)[,indicators]
-# Does it meet  your forecasting goal? TODO
+accuracy(seasonal_naive_method, test)[,indicators]
+# Does it meet your forecasting goal? TODO
 # Residuals...
 res <- residuals(seasonal_naive_method)
 mean(res, na.rm=TRUE)
 skewness(res, na.rm=TRUE)
 checkresiduals(seasonal_naive_method)
+autoplot(train, series='Train data', color='black') +
+  autolayer(fitted(seasonal_naive_method), series='Fitted values') +
+  ggtitle('Fitted values from Seasonal naive method') + ylab('') + theme(legend.position="bottom") +
+  guides(colour=guide_legend(title=""))
+
 # Uncorrelation: from the ACF we can see that most of the peaks lie between 
-#    the upper and lower significant limits, however at lag 1,2,11, 12 correlation
-#    (not so much but) is relevant. Formally, with the Ljung-Box test we do not reject
-#    uncorrelation because p-value is < 0.05
-# Normally distributed with mean zero: mean is -54, slightly overestimating 
-#    (anyway is close to 0...). Distribution is positive skewness (with a small skewness coeff...) 
+#    the upper and lower significant limits. Exceptions: are lag 1-4, 11-12 and 36 
+#    where correlation is relevant. Formally, with the Ljung-Box 
+#    test we reject the white noise hypothesis (there is correlation! p-value=8.529e-08 is < 0.05)
+# Normally distributed with mean zero: mean is -35 (bias!), overestimating 
+#    Distribution is positive skewness (with a small skewness coeff...) 
+# In deep: The two large peaks in the residual plot correspond to the two outliers previously identified.
+#    The seasonal naive simply replicate the last observed season to predict 
+#    the following. In the first year in the training data the trend is positive, then it becomes negative till 1990, then stabilize. 
+#    Seasonal naive doesn't model trends.  This explain the first 9 points positive 
+#    in a row in the residual plots (first positive trend), and also the series of mainly negative values in 
+#    the residual plots from the 10th point ahead (second negative trend, overestimation), and so explain the correlation.
+#    It's also clear visible in the training data + fitted values plot.
 
 
+### --- EXPONENTIAL SMOOTHING ---
+# In the family of exponential smoothing the we do not opt for SES because our time series
+# has a strong seasonal component and not even for trend methods. We opt for Holt-Winters’ seasonal method
+# to capture seasonality. 
+# TODO discuss and choose method additive or multiplicative, damped or not damped... ?
+# maybe multiplicative is slighlty better...
 
+fit1 <- hw(train,seasonal="additive", h=H)
+fit2 <- hw(train,seasonal="multiplicative", h=H)
+fit3 <- hw(train, damped=TRUE, seasonal="additive", h=H)
+fit4 <- hw(train, damped=TRUE, seasonal="multiplicative", h=H)
+test_metrics <- rbind(accuracy(fit1, test)[2,indicators], 
+                      accuracy(fit2, test)[2,indicators],
+                      accuracy(fit3, test)[2,indicators],
+                      accuracy(fit4, test)[2,indicators])
+rownames(test_metrics) <- c('H-W additive','H-W multiplicative','H-W add. damped', 'H-W mul. damped')
+test_metrics
 
+autoplot(train) +
+  ggtitle('Forecasts from Holt-Winters multiplicative method') + 
+  autolayer(fit2, series="Holt-Winters mult.", PI=TRUE) +
+  autolayer(test, series="Actual") +
+  xlab("Year") + ylab('')
 
+# TODO check also training set accuracy of all 4 methods
+# TODO check residual
+# TODO compare with simple method...
+
+### --- ETS AND AUTO-ARIMA ---
+## TODO
