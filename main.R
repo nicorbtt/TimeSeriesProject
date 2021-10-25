@@ -26,6 +26,7 @@ show_ts <- function(ts) {
 winestocks <- all_ts$N2101
 
 # EXPLORATIVE DATA ANALYSIS
+
 show_ts(winestocks)
 
 
