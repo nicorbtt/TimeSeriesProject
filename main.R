@@ -146,6 +146,11 @@ autoplot(train) +
   xlab("Year") + ylab('')
 
 # TODO check also training set accuracy of all 4 methods
+train_metrics <- rbind(accuracy(fit1, test)[1,indicators], 
+                      accuracy(fit2, test)[1,indicators],
+                      accuracy(fit3, test)[1,indicators],
+                      accuracy(fit4, test)[1,indicators])
+rownames(train_metrics) <- c('H-W additive','H-W multiplicative','H-W add. damped', 'H-W mul. damped')
 # TODO check residual
 # TODO compare with simple method...
 
