@@ -170,3 +170,13 @@ res <- residuals(fit_ets)
 mean(res, na.rm=TRUE)
 skewness(res, na.rm=TRUE)
 checkresiduals(fit_ets)
+
+# ARIMA
+fit_arima <- auto.arima(train)
+summary(fit_arima)
+autoplot(fit_arima)
+accuracy(forecast(fit_arima,H), test)[,indicators]
+res <- residuals(fit_arima)
+mean(res, na.rm=TRUE)
+skewness(res, na.rm=TRUE)
+checkresiduals(fit_arima)
