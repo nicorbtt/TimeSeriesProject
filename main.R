@@ -151,8 +151,22 @@ train_metrics <- rbind(accuracy(fit1, test)[1,indicators],
                       accuracy(fit3, test)[1,indicators],
                       accuracy(fit4, test)[1,indicators])
 rownames(train_metrics) <- c('H-W additive','H-W multiplicative','H-W add. damped', 'H-W mul. damped')
+
 # TODO check residual
+res <- residuals(fit2)
+mean(res, na.rm=TRUE)
+skewness(res, na.rm=TRUE)
+checkresiduals(fit2)
+
 # TODO compare with simple method...
 
 ### --- ETS AND AUTO-ARIMA ---
 ## TODO
+fit_ets <- ets(train)
+summary(fit_ets)
+autoplot(fit_ets)
+accuracy(forecast(fit_ets,H), test)[,indicators]
+res <- residuals(fit_ets)
+mean(res, na.rm=TRUE)
+skewness(res, na.rm=TRUE)
+checkresiduals(fit_ets)
