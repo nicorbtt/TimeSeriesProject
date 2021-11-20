@@ -40,15 +40,14 @@ show_ts(winestocks)
 # over the years too). Subseries plot shows also negative trends for almost all
 # the subperiods. The autocorrelogram confirms previous statements: strong seasonal
 # feature is observable with positive spikes at lags 12±2 (multiples of seasonal frequency),
-# and with significant negatives spikes equally alternated. Spikes amplitude decrease over time
+# and with significant negatives spikes equally alternated. Spikes amplitude decrease
 # due to the trend. Seasonal and trend features were also observed using automatic
 # time series decomposition.
 
 ### --- INDICATORS ---
 # As we are working with a single time series the scale dependent property of
 # metrics assumes less importance. As two suitable indicators of forecasting
-# performance we opt for MAE (which respect to squared metrics account also for under 
-# and over estimating) and MAPE. 
+# performance we opt for MAE and MAPE. 
 # Our goals for the two indicators are .... #TODO
 
 ### --- SIMPLE METHODS ---
@@ -79,7 +78,7 @@ autoplot(train) +
   xlab("Year") + ylab('') + 
   guides(colour=guide_legend(title="Forecast"))
   
-indicators <- c('MAE', 'MAPE')
+indicators <- c('MAE', 'RMSE')
 test_metrics <- rbind(accuracy(average_method, test)[2,indicators], 
                       accuracy(naive_method, test)[2,indicators],
                       accuracy(seasonal_naive_method, test)[2,indicators],
@@ -123,7 +122,17 @@ autoplot(train, series='Train data', color='black') +
 
 ### --- EXPONENTIAL SMOOTHING ---
 # In the family of exponential smoothing the we do not opt for SES because our time series
-# has a strong seasonal component and not even for trend methods. We opt for Holt-Winters’ seasonal method
+# has a strong seasonal component and not even for trend methods. 
+fit1 <- ses(train, h=H)
+fit2 <- holt(train, h=H)
+fit3 <- holt(train, h=H, damped=TRUE)
+test_metrics <- rbind(accuracy(fit1, test)[2,indicators], 
+                      accuracy(fit2, test)[2,indicators],
+                      accuracy(fit3, test)[2,indicators])
+rownames(test_metrics) <- c('SES','HOLT','HOLT damped')
+test_metrics
+
+# We opt for Holt-Winters’ seasonal method
 # to capture seasonality. 
 # TODO discuss and choose method additive or multiplicative, damped or not damped... ?
 # maybe multiplicative is slighlty better...
@@ -145,18 +154,35 @@ autoplot(train) +
   autolayer(test, series="Actual") +
   xlab("Year") + ylab('')
 
+autoplot(train, series='Train data', color='black') +
+  autolayer(fitted(fit2), series='Fitted values') +
+  ggtitle('Fitted values from Holt-Winters multiplicative method') + ylab('') + theme(legend.position="bottom") +
+  guides(colour=guide_legend(title=""))
+
 # TODO check also training set accuracy of all 4 methods
 train_metrics <- rbind(accuracy(fit1, test)[1,indicators], 
                       accuracy(fit2, test)[1,indicators],
                       accuracy(fit3, test)[1,indicators],
                       accuracy(fit4, test)[1,indicators])
 rownames(train_metrics) <- c('H-W additive','H-W multiplicative','H-W add. damped', 'H-W mul. damped')
+train_metrics
 
 # TODO check residual
 res <- residuals(fit2)
 mean(res, na.rm=TRUE)
 skewness(res, na.rm=TRUE)
 checkresiduals(fit2)
+
+res2 = res
+res2[[12*4+7]] = NA
+res2[[12*8+5]] = NA
+LBtest <- Box.test(res2, fitdf = 16, lag = 24, type = "Ljung")
+LBtest$method <- "Ljung-Box test"
+LBtest$data.name <- "Residuals from Holt-Winters' multiplicative method"
+names(LBtest$statistic) <- "Q*"
+print(LBtest)
+cat(paste("Model df: ", df, ".   Total lags used: ", 
+          lag, "\n\n", sep = ""))
 
 # TODO compare with simple method...
 
@@ -170,12 +196,21 @@ res <- residuals(fit_ets)
 mean(res, na.rm=TRUE)
 skewness(res, na.rm=TRUE)
 checkresiduals(fit_ets)
+autoplot(train, series='Train data', color='black') +
+  autolayer(fitted(fit_ets), series='Fitted values') +
+  ggtitle('Fitted values from ETS(A,N,A)') + ylab('') + theme(legend.position="bottom") +
+  guides(colour=guide_legend(title=""))
+autoplot(train) +
+  ggtitle('Forecasts from ETS(A,N,A)') + 
+  autolayer(fit2, series="ETS(A,N,A).", PI=TRUE) +
+  autolayer(test, series="Actual") +
+  xlab("Year") + ylab('')
 
 # ARIMA
 fit_arima <- auto.arima(train)
 summary(fit_arima)
 autoplot(fit_arima)
-accuracy(forecast(fit_arima,H), test)[,indicators]
+accuracy(forecast(fit_arima,H), test)[1,indicators]
 res <- residuals(fit_arima)
 mean(res, na.rm=TRUE)
 skewness(res, na.rm=TRUE)
